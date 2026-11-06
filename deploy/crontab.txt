@@ -1,0 +1,3 @@
+# m h dom mon dow   (crontab -e; times are the machine's timezone)
+# daily pass that may sign in to Workday with ATS_EMAIL / ATS_PASSWORD
+0 15 * * * /path/to/job-autopilot/deploy/run_once.sh

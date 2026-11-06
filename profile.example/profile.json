@@ -1,0 +1,60 @@
+{
+ "_comment": "Your canonical form answers. Copy profile.example/ to profile/ and edit. Every value here is typed into real applications - only put true facts.",
+ "resume_pdf": "resume.pdf",
+ "identity": {
+  "first": "Alex", "last": "Doe", "preferred_name": "",
+  "email": "alex.doe@example.com", "phone": "(555) 010-0100", "phone_type": "Mobile",
+  "addr1": "123 Example St", "city": "Springfield", "state": "Illinois", "zip": "62701",
+  "country": "United States",
+  "linkedin": "https://www.linkedin.com/in/alex-doe-example/",
+  "github": "https://github.com/alex-doe-example",
+  "website": ""
+ },
+ "current_company": "Example University",
+ "work_auth": {
+  "authorized_to_work": "Yes",
+  "needs_sponsorship": "Yes",
+  "resides_in_country": "Yes",
+  "visa_status": "F-1 student visa (OPT eligible)",
+  "security_clearance": "No",
+  "us_person_itar": "No"
+ },
+ "preferences": {
+  "willing_to_relocate": "Yes",
+  "willing_general": "Yes",
+  "salary": "150000",
+  "salary_rule": "If the posting's range tops out below 150000, enter the top of their range instead.",
+  "start_date": "06/01/2027",
+  "how_did_you_hear": "LinkedIn",
+  "default_skill": "Python"
+ },
+ "standing_answers": {
+  "relatives_at_company": "No",
+  "previously_employed": "No",
+  "agree_to_consents": true,
+  "marketing_opt_in": false
+ },
+ "eeo": {
+  "_comment": "Use \"decline\" for any item to pick the 'I don't wish to answer' option. Lists = preferred option names in order.",
+  "gender": ["Male", "Man"],
+  "race": ["Asian"],
+  "hispanic": "No",
+  "veteran": "No",
+  "disability": "No",
+  "sexual_orientation": ["Heterosexual", "Straight"],
+  "transgender": "No",
+  "decline_all": false
+ },
+ "employment": [
+  {"title": "Software Engineer", "company": "Example Corp", "location": "Springfield, US",
+   "start": "06/2022", "end": "08/2025", "current": false,
+   "description": "Built backend services and an internal ML evaluation tool. (Keep this matching your résumé.)"}
+ ],
+ "educationEntries": [
+  {"school": "Example University", "schoolOptions": ["The Example University"],
+   "degree": "Master's Degree",
+   "degreeRx": ["^\\s*master'?s?( degree)?\\s*$", "^\\s*master of science\\s*$"],
+   "field": "Computer Science", "fieldOptions": ["Computer and Information Science", "Computer Sciences"],
+   "gpa": "3.7", "start": "09/2025", "end": "05/2027", "current": true}
+ ]
+}

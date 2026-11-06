@@ -1,0 +1,57 @@
+{
+  "_comment": "What to search and how to pre-filter titles/locations. Board tokens are the slug in the company's Greenhouse/Ashby/Lever URL.",
+  "greenhouse_boards": [
+    "anthropic",
+    "scaleai",
+    "figma",
+    "databricks",
+    "waymo"
+  ],
+  "ashby_orgs": [
+    "openai",
+    "perplexity",
+    "runway",
+    "cohere",
+    "applied",
+    "lumaai"
+  ],
+  "lever_orgs": [
+    "palantir"
+  ],
+  "company_names": {
+    "applied": "Applied Intuition",
+    "lumaai": "Luma AI",
+    "runway": "Runway",
+    "scaleai": "Scale AI",
+    "perplexity": "Perplexity",
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "figma": "Figma",
+    "databricks": "Databricks",
+    "waymo": "Waymo",
+    "palantir": "Palantir"
+  },
+  "excluded_companies": [],
+  "title_include_regex": "(?i)(machine learning|\\bML\\b|applied scientist|applied research(er)?|computer vision|multimodal|\\bLLM\\b|deep learning|foundation model|reinforcement learning|\\bRLHF\\b|\\bRL\\b|vision[- ]language|distillation|\\balignment\\b|\\bAI (engineer|research|scientist|safety|resident|fellow)\\b|(?=.*\\b(research (scientist|engineer)|researcher)\\b)(?=.*\\b(AI|ML|generative)\\b))",
+  "title_exclude_regex": "(?i)(\\bintern(ship)?s?\\b|co-?op\\b|\\bstaff\\b|\\bprincipal\\b|\\bsenior\\b|\\blead\\b|senior manager|director|head of|manager|sales|marketing|recruiter|account executive|customer success|solutions consultant|business development|4\\+ years|5\\+ years|6\\+ years|7\\+ years|8\\+ years|10\\+)",
+  "us_location_regex": "(?i)(united states|\\bUSA?\\b|remote.*(us|america)|,\\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\\b|\\b(District of Columbia|North Carolina|South Carolina|Massachusetts|New Hampshire|West Virginia|North Dakota|Pennsylvania|Rhode Island|South Dakota|Connecticut|Mississippi|California|New Jersey|New Mexico|Washington|Louisiana|Minnesota|Tennessee|Wisconsin|Arkansas|Colorado|Delaware|Illinois|Kentucky|Maryland|Michigan|Missouri|Nebraska|New York|Oklahoma|Virginia|Alabama|Arizona|Florida|Georgia|Indiana|Montana|Vermont|Wyoming|Alaska|Hawaii|Kansas|Nevada|Oregon|Idaho|Maine|Texas|Iowa|Ohio|Utah)\\b)",
+  "jobright_public_pages": [
+    "https://jobright.ai/jobs/machine-learning-research-engineer-jobs-in-united-states",
+    "https://jobright.ai/jobs/research-engineer---applied-machine-learning-jobs-in-united-states",
+    "https://jobright.ai/jobs/machine-learning-engineer-jobs-in-united-states",
+    "https://jobright.ai/jobs/machine-learning-engineer-new-grad-jobs-in-united-states",
+    "https://jobright.ai/jobs/ai-engineer-jobs-in-united-states",
+    "https://jobright.ai/jobs/entry-level-machine-learning-engineer-jobs-in-united-states",
+    "https://jobright.ai/jobs/applied-scientist-jobs-in-united-states",
+    "https://jobright.ai/jobs/computer-vision-engineer-jobs-in-united-states"
+  ],
+  "tracker_pages": [
+    "https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/NEW_GRAD_USA.md",
+    "https://raw.githubusercontent.com/speedyapply/2026-AI-College-Jobs/main/NEW_GRAD_USA.md",
+    "https://raw.githubusercontent.com/vanshb03/New-Grad-2026/main/README.md"
+  ],
+  "html_table_pages": [
+    "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md"
+  ],
+  "max_years_experience": 3
+}

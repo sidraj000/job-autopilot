@@ -1,0 +1,16 @@
+# personal data — never commit
+profile/
+data/
+secrets/
+runs/
+.env
+.env.*
+!.env.example
+*.pdf
+
+# tooling
+.venv/
+.browser-profile/
+__pycache__/
+*.pyc
+.DS_Store
