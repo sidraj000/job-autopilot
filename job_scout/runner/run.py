@@ -206,8 +206,8 @@ def apply_one(page, job, run_dir, dry):
         shot("captcha")
         return record(job["url"], "blocked", "captcha after submit (not solved; finish by hand)", dry)
     if form.SECURITY_CODE_RX.search(form.page_text(page, 60000)):
-        # emailed one-time code: read it from your inbox (read-only Gmail
-        # token, optional) and enter it. CAPTCHAs are never solved.
+        # emailed one-time code: read it from your inbox (Gmail App
+        # Password or OAuth token, optional) and enter it. CAPTCHAs are never solved.
         shot("security-code")
         why = _enter_emailed_code(page, submitted_at)
         if why is None:

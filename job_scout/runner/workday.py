@@ -1,5 +1,5 @@
 """Workday applications: sign in (or create the account) with ATS_EMAIL /
-ATS_PASSWORD from .env, confirm a new account through Gmail (read-only), then
+ATS_PASSWORD from .env, confirm a new account through Gmail, then
 walk the multi-step flow — upload résumé, answer each step, Next — and submit
 once at Review.
 
@@ -417,7 +417,7 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
         msg = gmail.wait_for_message(
             f"in:anywhere from:{tenant}@myworkday.com (reset OR password)", since, timeout=300)
     except FileNotFoundError as e:
-        return f"auto-reset needs Gmail token: {e}"
+        return f"auto-reset needs Gmail: {e}"
     link = None
     for raw in re.findall(r'https?://[^\s"\'<>]+', msg or ""):
         u = raw.replace("&amp;", "&")

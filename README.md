@@ -50,7 +50,7 @@ and anything it can't answer truthfully goes back to you.
 - **Never double-submits.** A crash after the submit click is recorded as
   `unverified` and never retried automatically.
 - **Your data stays local.** `profile/`, `data/`, `secrets/`, `runs/` and
-  `.env` are git-ignored. Passwords and tokens are never sent to the model,
+  `.env` are git-ignored. Passwords, App Passwords and tokens are never sent to the model,
   logged or screenshotted.
 
 You are responsible for what gets submitted in your name. Read your profile
@@ -126,11 +126,27 @@ Jobs on sites without a form adapter are listed in `data/needs_you.md`.
 - **Workday:** set `ATS_EMAIL` / `ATS_PASSWORD` in `.env`. The runner signs
   in, or creates the account on a new tenant. Per-tenant passwords go in
   `WORKDAY_PW_<TENANT>`.
-- **Gmail (read-only):** lets the runner read emailed security codes
-  (Greenhouse "confirm you're human" codes) and Workday verification links.
-  Run `python3 deploy/gmail_auth.py CLIENT_ID CLIENT_SECRET` on a machine with
-  a browser, using a Google Cloud OAuth desktop client with the Gmail API
-  enabled. It writes `secrets/gmail_token.json` (scope `gmail.readonly`).
+- **Gmail:** lets the runner read emailed security codes (Greenhouse
+  "confirm you're human" codes) and Workday verification links. It only
+  searches and reads; nothing is marked read, moved, deleted or sent. Two
+  ways to connect:
+  - **App Password (easiest, 2 minutes).** Turn on 2-Step Verification for
+    the Google account, create a password at
+    [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
+    and set `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD` in `.env`. Google can't
+    limit an App Password to reading, so anyone who gets it has your whole
+    mailbox. Safest: create a separate Gmail account for this, forward only
+    code emails to it with a filter in your main inbox (for example
+    `from:(greenhouse.io OR myworkday.com OR ashbyhq.com) OR subject:("security code" OR "verification code")`),
+    and use that account's App Password. The address on your applications
+    stays your main one.
+  - **OAuth token (read-only, enforced by Google).** Create a Google Cloud
+    project, enable the Gmail API, and make an OAuth client of type
+    "Desktop app". Then run `python3 deploy/gmail_auth.py CLIENT_ID CLIENT_SECRET`
+    on a machine with a browser. It writes `secrets/gmail_token.json`
+    (scope `gmail.readonly`). Publish the consent screen ("In production")
+    before creating the token: while the app is in Testing, Google expires
+    the token after 7 days. Used when `GMAIL_APP_PASSWORD` is empty.
 - **Jobright recommendations:** log in at jobright.ai, copy the `SESSION_ID`
   cookie, and save it as one line `SESSION_ID=<value>` in
   `secrets/jobright_session.txt` (`chmod 600`). The fetcher then reads your
@@ -151,6 +167,7 @@ Jobs on sites without a form adapter are listed in `data/needs_you.md`.
 | `RUNNER_DISCOVER_MAX` | `60` | Postings screened per pass |
 | `RUNNER_AUTO_APPROVE_DISCOVERED` | `0` | `1` = approve what passes screening automatically |
 | `RUNNER_HEADLESS` | `1` | `0` shows the browser |
+| `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD` | — | Gmail via App Password (see above) |
 | `JOB_PROFILE_DIR` / `JOB_DATA_DIR` | `profile/` / `data/` | Move your profile or state elsewhere |
 
 ## Layout

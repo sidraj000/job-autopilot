@@ -4,7 +4,8 @@
 Run this yourself on a machine with a browser (e.g. your laptop):
   1. Google Cloud console -> APIs & Services -> enable "Gmail API"
   2. Credentials -> Create credentials -> OAuth client ID -> "Desktop app"
-     (OAuth consent screen: External, add your Gmail as a test user)
+     (OAuth consent screen: External, then "Publish app" -- in Testing the
+     token expires after 7 days)
   3. python3 deploy/gmail_auth.py CLIENT_ID CLIENT_SECRET
   4. copy secrets/gmail_token.json to the machine that runs the pipeline
 The token can only read mail (scope gmail.readonly). Revoke any time at

@@ -1,12 +1,21 @@
-"""Read-only Gmail access for account-verification emails (stdlib only).
+"""Gmail access for emailed security codes / verification links (stdlib only).
 
-Token file (GMAIL_TOKEN_FILE, default secrets/gmail_token.json), created once
-by deploy/gmail_auth.py:
-  {"client_id": ..., "client_secret": ..., "refresh_token": ...}
-Scope is gmail.readonly: this code can find a verification link or code,
-never send, delete, or change mail.
+Two backends; the first one configured wins:
+  - App Password (simple): GMAIL_ADDRESS + GMAIL_APP_PASSWORD in .env. Logs in
+    over IMAP and opens All Mail read-only (EXAMINE, BODY.PEEK): nothing is
+    marked read, moved, deleted or sent. Google can't scope an App Password,
+    so the password itself grants full mailbox access; consider a dedicated
+    inbox that only receives forwarded code emails (see README).
+  - OAuth token (read-only enforced by Google): GMAIL_TOKEN_FILE (default
+    secrets/gmail_token.json), created once by deploy/gmail_auth.py:
+      {"client_id": ..., "client_secret": ..., "refresh_token": ...}
+    Scope gmail.readonly.
+Both take the same Gmail search syntax (IMAP via Gmail's X-GM-RAW).
 """
 import base64
+import email
+import email.policy
+import imaplib
 import json
 import re
 import time
@@ -21,7 +30,7 @@ API = "https://gmail.googleapis.com/gmail/v1/users/me"
 def _token_file():
     p = config.ROOT / config.get("GMAIL_TOKEN_FILE", "secrets/gmail_token.json")
     if not p.exists():
-        raise FileNotFoundError(f"Gmail token missing: {p} (run deploy/gmail_auth.py)")
+        raise FileNotFoundError(f"Gmail not set up: set GMAIL_ADDRESS + GMAIL_APP_PASSWORD in .env, or create {p} with deploy/gmail_auth.py")
     return p
 
 
@@ -47,22 +56,70 @@ def _bodies(part):
         yield from _bodies(sub)
 
 
+def _app_password():
+    addr, pw = config.get("GMAIL_ADDRESS"), config.get("GMAIL_APP_PASSWORD")
+    return (addr, pw.replace(" ", "")) if addr and pw else None
+
+
+def _imap():
+    addr, pw = _app_password()
+    m = imaplib.IMAP4_SSL("imap.gmail.com", timeout=30)
+    m.login(addr, pw)
+    _, boxes = m.list()
+    allmail = next((b.decode().rsplit(' "/" ', 1)[-1] for b in boxes or [] if b"\\All" in b), '"[Gmail]/All Mail"')
+    m.select(allmail, readonly=True)  # EXAMINE: flags never change
+    return m
+
+
+def _imap_search(m, query):
+    _, data = m.uid("SEARCH", "X-GM-RAW", '"' + query.replace('"', '\\"') + '"')
+    return data[0].split() if data and data[0] else []
+
+
+def _imap_message(m, uid):
+    """(received epoch, decoded html + plain text) without marking it read."""
+    _, data = m.uid("FETCH", uid, "(INTERNALDATE BODY.PEEK[])")
+    meta, raw = data[0]
+    when = time.mktime(imaplib.Internaldate2tuple(meta))
+    msg = email.message_from_bytes(raw, policy=email.policy.default)
+    parts = [p.get_content() for p in msg.walk()
+             if p.get_content_type() in ("text/plain", "text/html") and not p.is_attachment()]
+    return when, "\n".join(parts)
+
+
 def wait_for_message(query, since_epoch, timeout=300, poll=15):
     """Newest message matching the Gmail query received after since_epoch;
     returns its decoded text (html + plain) or None on timeout."""
     deadline = time.time() + timeout
+    q = f"{query} after:{int(since_epoch) - 60}"
     while time.time() < deadline:
-        token = _access_token()
-        res = _get("messages", token, q=f"{query} after:{int(since_epoch) - 60}", maxResults=5)
-        for m in res.get("messages", []):
-            msg = _get(f"messages/{m['id']}", token, format="full")
-            if int(msg.get("internalDate", 0)) / 1000 >= since_epoch - 60:
-                return "\n".join(_bodies(msg["payload"]))
+        if _app_password():
+            m = _imap()
+            try:
+                for uid in reversed(_imap_search(m, q)[-5:]):
+                    when, text = _imap_message(m, uid)
+                    if when >= since_epoch - 60:
+                        return text
+            finally:
+                m.logout()
+        else:
+            token = _access_token()
+            res = _get("messages", token, q=q, maxResults=5)
+            for msg_ref in res.get("messages", []):
+                msg = _get(f"messages/{msg_ref['id']}", token, format="full")
+                if int(msg.get("internalDate", 0)) / 1000 >= since_epoch - 60:
+                    return "\n".join(_bodies(msg["payload"]))
         time.sleep(poll)
     return None
 
 
 def count(query):
+    if _app_password():
+        m = _imap()
+        try:
+            return len(_imap_search(m, query))
+        finally:
+            m.logout()
     return int(_get("messages", _access_token(), q=query, maxResults=1).get("resultSizeEstimate", 0))
 
 
