@@ -50,8 +50,17 @@ and anything it can't answer truthfully goes back to you.
 - **Never double-submits.** A crash after the submit click is recorded as
   `unverified` and never retried automatically.
 - **Your data stays local.** `profile/`, `data/`, `secrets/`, `runs/` and
-  `.env` are git-ignored. Passwords, App Passwords and tokens are never sent to the model,
-  logged or screenshotted.
+  `.env` are git-ignored and created readable by you only (umask 077).
+  Passwords, App Passwords and tokens are never sent to the model, logged,
+  screenshotted, or passed to child processes (the `claude` CLI, helper
+  scripts, the browser).
+- **Credentials only go to the real site.** A job link counts as Workday,
+  Greenhouse, Ashby, Lever or Rippling only if it's https on that exact
+  domain (or a subdomain), and the Workday password is typed only after
+  checking the page is on the job's own Workday host. Links from emails are
+  held to the same exact-host rule. Job links that imitate an ATS host
+  (`acme.myworkdayjobs.com.example.net`) are dropped at fetch time, and the
+  review list shows each job's real host.
 
 You are responsible for what gets submitted in your name. Read your profile
 carefully, start with `--dry-run`, and check the employer's and site's terms.
@@ -128,8 +137,10 @@ Jobs on sites without a form adapter are listed in `data/needs_you.md`.
   `WORKDAY_PW_<TENANT>`.
 - **Gmail:** lets the runner read emailed security codes (Greenhouse
   "confirm you're human" codes) and Workday verification links. It only
-  searches and reads; nothing is marked read, moved, deleted or sent. Two
-  ways to connect:
+  searches and reads; nothing is marked read, moved, deleted or sent. It
+  never looks in Spam or Trash (where forged "Workday" emails land), so if
+  real Workday mail goes to Spam, add a Gmail filter for
+  `from:myworkday.com` with "Never send it to Spam". Two ways to connect:
   - **App Password (easiest, 2 minutes).** Turn on 2-Step Verification for
     the Google account, create a password at
     [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),

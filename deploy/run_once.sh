@@ -2,6 +2,7 @@
 # One unattended pass: discover new jobs, then apply to the approved queue.
 # Safe to run from cron and from run_loop.sh at once (they share a lock).
 set -euo pipefail
+umask 077  # run.log, screenshots and saved sessions are private to you
 cd "$(dirname "$0")/.."
 mkdir -p runs
 exec >>runs/run.log 2>&1

@@ -22,6 +22,7 @@ import sys
 import urllib.request
 from datetime import date
 
+import ats_hosts
 import paths
 import seen_store
 
@@ -388,6 +389,18 @@ def main():
         if key not in seen_keys:
             seen_keys.add(key)
             deduped.append(r)
+
+    # Links come from third parties (community trackers, Jobright): drop any
+    # that isn't plain https or that imitates an ATS host, so a lookalike can
+    # never reach the runner or your "needs you" list.
+    safe = []
+    for r in deduped:
+        why = ats_hosts.suspicious(r["url"]) if r["url"] else None
+        if why:
+            report.append(f"DROPPED {r['company']} — {r['title']}: {why} [{r['url'][:120]}]")
+        else:
+            safe.append(r)
+    deduped = safe
 
     # drop anything already processed in a previous run
     seen_store_data = seen_store.load()

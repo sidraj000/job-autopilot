@@ -23,6 +23,7 @@ import urllib.parse
 import urllib.request
 
 from . import config
+import ats_hosts  # noqa: E402 — on sys.path via config
 
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
 
@@ -123,14 +124,16 @@ def count(query):
     return int(_get("messages", _access_token(), q=query, maxResults=1).get("resultSizeEstimate", 0))
 
 
-def find_link(text, host_hint):
-    """First link in the email pointing at the Workday tenant (verification)."""
-    links = re.findall(r'https?://[^\s"\'<>]+', text or "")
-    links = [l.replace("&amp;", "&") for l in links]
-    for l in links:
-        if host_hint in l and re.search(r"verif|activat|confirm|token", l, re.I):
-            return l
-    return next((l for l in links if host_hint in l), None)
+def find_link(text, host, pattern=r"verif|activat|confirm|token", fallback=True):
+    """First https link in the email whose host is exactly `host` (the Workday
+    tenant), preferring links that match `pattern`; with fallback=False only
+    those. An exact host check, not a substring: a link such as
+    https://evil.example/?u=acme.wd5.myworkdayjobs.com must never be opened,
+    since the runner may type your password on the page it leads to."""
+    links = [l.replace("&amp;", "&") for l in re.findall(r'https?://[^\s"\'<>]+', text or "")]
+    links = [l for l in links if ats_hosts.ats_for(l) and ats_hosts.hostname(l) == host]
+    hit = next((l for l in links if re.search(pattern, l, re.I)), None)
+    return hit or (links[0] if fallback and links else None)
 
 
 def find_code(text):

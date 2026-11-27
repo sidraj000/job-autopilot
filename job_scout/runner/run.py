@@ -19,6 +19,7 @@ import traceback
 from playwright.sync_api import sync_playwright
 
 from . import adapters, answerer, config, form, gmail, workday
+import ats_hosts  # noqa: E402 — on sys.path via config
 
 NEEDS_SPONSOR = str(config.paths.profile()["work_auth"].get("needs_sponsorship", "No")).lower() == "yes"
 
@@ -29,7 +30,8 @@ NEEDS_YOU = config.paths.DATA_DIR / "needs_you.md"
 
 
 def sh(args):
-    return subprocess.run(AUTO_APPLY + args, capture_output=True, text=True, check=True).stdout
+    return subprocess.run(AUTO_APPLY + args, capture_output=True, text=True, check=True,
+                          env=config.child_env()).stdout
 
 
 def record(url, status, note, dry):
@@ -250,7 +252,8 @@ def main():
     answerer.assert_sandboxed()
     recover_inflight(args.dry_run)
     if config.AUTO_APPROVE_TOP and not args.dry_run:
-        subprocess.run(AUTO_APPLY + ["approve", "--top", str(config.AUTO_APPROVE_TOP)], check=False)
+        subprocess.run(AUTO_APPLY + ["approve", "--top", str(config.AUTO_APPROVE_TOP)], check=False,
+                       env=config.child_env())
 
     budget = json.loads(sh(["next"]))["budget_today"]
     if args.cap is not None:
@@ -261,6 +264,9 @@ def main():
         jobs = [j for j in jobs if j["url"].split("?")[0].rstrip("/") == args.url.split("?")[0].rstrip("/")]
         if not jobs:
             sys.exit("that URL is not in today's approved work list (approve it first)")
+    for j in [j for j in jobs if ats_hosts.suspicious(j["url"])]:
+        skip(j["url"], f"unsafe link, not opened: {ats_hosts.suspicious(j['url'])}", args.dry_run)
+    jobs = [j for j in jobs if not ats_hosts.suspicious(j["url"])]
     supported = [j for j in jobs if adapters.for_url(j["url"])]
     manual = [j for j in jobs if not adapters.for_url(j["url"])]
 
@@ -271,12 +277,13 @@ def main():
     no_pw = config.get("RUNNER_NO_PASSWORD") == "1"
     with sync_playwright() as pw:
         if no_pw and SESSION.exists():  # reuse a saved sign-in; never type the password
-            browser = pw.chromium.launch(headless=config.HEADLESS)
+            browser = pw.chromium.launch(headless=config.HEADLESS, env=config.child_env())
             ctx = browser.new_context(storage_state=str(SESSION),
                                       viewport={"width": 1400, "height": 1000})
         else:
             ctx = pw.chromium.launch_persistent_context(str(config.PROFILE_DIR), headless=config.HEADLESS,
-                                                        viewport={"width": 1400, "height": 1000})
+                                                        viewport={"width": 1400, "height": 1000},
+                                                        env=config.child_env())
         submitted = 0
         for job in supported:
             if submitted >= budget and not args.dry_run:

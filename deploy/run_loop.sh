@@ -4,6 +4,7 @@
 # schedule deploy/run_once.sh from cron for a daily pass that signs in.
 # Start: nohup setsid deploy/run_loop.sh >/dev/null 2>&1 &
 # Stop:  kill -- -"$(cat runs/loop.pid)"
+umask 077
 cd "$(dirname "$0")/.."
 mkdir -p runs
 echo $$ > runs/loop.pid

@@ -4,21 +4,38 @@ walk the multi-step flow — upload résumé, answer each step, Next — and sub
 once at Review.
 
 The password is only ever passed to page.fill() on Workday's own password
-inputs; it is not logged, screenshotted (fields are masked), or sent to the
+inputs, and only after checking that the page is https on the job's own
+Workday host (_require_host); it is not logged, screenshotted (fields are masked), or sent to the
 answer model. A visible CAPTCHA, a verification step we can't complete by
 email, or a sign-in failure on an existing account -> blocked.
 """
 import json
 import re
 import time
-from urllib.parse import urlsplit
 
 from . import answerer, config, form, gmail
+import ats_hosts  # noqa: E402 — on sys.path via config
 
 NO_CREDS = "Workday sign-in needed and ATS_EMAIL/ATS_PASSWORD are not set in .env"
 NO_LOGIN = "no live Workday session (RUNNER_NO_PASSWORD on) — do one normal sign-in pass to refresh it"
 ACCOUNTS = config.RUNS_DIR / "workday_accounts.json"  # host -> {"created": date}; no secrets
 A = lambda aid: f'[data-automation-id="{aid}"]'  # noqa: E731
+# Gmail's default search already skips Spam and Trash; say so explicitly, since
+# a forged "from:acme@myworkday.com" mail lands in Spam.
+NOT_SPAM = "-in:spam -in:trash"
+
+
+class WrongHost(Exception):
+    """The page left the job's Workday host: credentials are never typed there."""
+
+
+def _require_host(page, host):
+    """Raise WrongHost unless the page is https on exactly `host`, a real
+    Workday host. Checked right before every email/password fill, because a
+    redirect or a reset/verification link could have moved the page."""
+    if ats_hosts.ats_for(page.url) != "workday" or ats_hosts.hostname(page.url) != host:
+        raise WrongHost(f"refused to type Workday credentials: page is on "
+                        f"{ats_hosts.hostname(page.url) or page.url[:80]!r}, expected {host}")
 
 
 def _visible(page, sel, timeout=0):
@@ -77,7 +94,7 @@ def _had_account(host):
     """Past email from this tenant's Workday (e.g. acme@myworkday.com) means
     an account already exists for ATS_EMAIL."""
     try:
-        return gmail.count(f"in:anywhere from:{host.split('.')[0]}@myworkday.com") > 0
+        return gmail.count(f"from:{host.split('.')[0]}@myworkday.com {NOT_SPAM}") > 0
     except Exception:  # no token / API error: fall back to trying account creation
         return False
 
@@ -91,10 +108,11 @@ def _signed_in(page):
     return bool(step) and not re.search(r"sign in|create account", step, re.I)
 
 
-def _sign_in(page, email, pw):
+def _sign_in(page, email, pw, host):
     if _visible(page, A("signInLink")) and not _visible(page, A("signInSubmitButton")):
         _click(page, "signInLink")
         page.wait_for_timeout(1500)
+    _require_host(page, host)
     page.locator(A("email")).fill(email)
     page.locator(A("password")).fill(pw)
     _click(page, "signInSubmitButton")
@@ -102,10 +120,11 @@ def _sign_in(page, email, pw):
     return _signed_in(page)
 
 
-def _create(page, email, pw):
+def _create(page, email, pw, host):
     if not _visible(page, A("createAccountSubmitButton")):
         _click(page, "createAccountLink")
         page.wait_for_timeout(1500)
+    _require_host(page, host)
     page.locator(A("email")).fill(email)
     page.locator(A("password")).fill(pw)
     page.locator(A("verifyPassword")).fill(pw)
@@ -403,6 +422,7 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
     _click(page, "forgotPasswordLink")
     page.wait_for_timeout(2000)
     if _visible(page, A("email")):
+        _require_host(page, host)
         page.locator(A("email")).fill(email)
     for aid in ("resetPasswordSubmitButton", "submitButton", "forgotPasswordSubmitButton"):
         if _visible(page, A(aid)):
@@ -415,15 +435,10 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
         return "captcha on Workday password-reset request"
     try:
         msg = gmail.wait_for_message(
-            f"in:anywhere from:{tenant}@myworkday.com (reset OR password)", since, timeout=300)
+            f"from:{tenant}@myworkday.com (reset OR password) {NOT_SPAM}", since, timeout=300)
     except FileNotFoundError as e:
         return f"auto-reset needs Gmail: {e}"
-    link = None
-    for raw in re.findall(r'https?://[^\s"\'<>]+', msg or ""):
-        u = raw.replace("&amp;", "&")
-        if host in u and re.search(r"reset|password|token|forgot", u, re.I):
-            link = u
-            break
+    link = gmail.find_link(msg, host, r"reset|password|token|forgot", fallback=False)
     if not link:
         return "auto-reset: no reset link in email within 5 min"
     page.goto(link, wait_until="domcontentloaded", timeout=60000)
@@ -431,6 +446,7 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
     shot("reset-1-page")
     if not _visible(page, A("password")):
         return "auto-reset: reset page has no password field (expired link?)"
+    _require_host(page, host)
     page.locator(A("password")).fill(pw)
     if _visible(page, A("verifyPassword")):
         page.locator(A("verifyPassword")).fill(pw)
@@ -448,7 +464,7 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
     if _visible(page, A("SignInWithEmailButton")):
         _click(page, "SignInWithEmailButton")
         page.wait_for_timeout(1500)
-    if _signed_in(page) or _sign_in(page, email, pw):
+    if _signed_in(page) or _sign_in(page, email, pw, host):
         print(f"  auto-reset: {tenant} password reset to ATS_PASSWORD and signed in")
         return None
     shot("reset-3-signin")
@@ -458,6 +474,13 @@ def _reset_password(page, host, email, pw, back_to_form, shot):
 def authenticate(page, host, back_to_form, shot=lambda tag: None):
     """Returns None when signed in, else a reason string (-> blocked).
     shot(tag) screenshots each stage (password inputs render masked)."""
+    try:
+        return _authenticate(page, host, back_to_form, shot)
+    except WrongHost as e:
+        return str(e)
+
+
+def _authenticate(page, host, back_to_form, shot):
     email, pw = config.get("ATS_EMAIL"), config.workday_password(host)
     tenant = host.split(".")[0]
     per_tenant = bool(config.get(f"WORKDAY_PW_{tenant.upper().replace('-', '_')}"))
@@ -475,7 +498,7 @@ def authenticate(page, host, back_to_form, shot=lambda tag: None):
         page.wait_for_timeout(2000)
     if form.captcha_visible(page):
         return "captcha on Workday sign-in"
-    if _sign_in(page, email, pw):
+    if _sign_in(page, email, pw, host):
         _remember(host)
         return None
     shot("auth-1-signin")
@@ -501,7 +524,7 @@ def authenticate(page, host, back_to_form, shot=lambda tag: None):
                 f"RUNNER_AUTO_RESET_PASSWORD. ({err[:80]})")
 
     since = time.time()
-    _create(page, email, pw)
+    _create(page, email, pw, host)
     shot("auth-2-created")
     if form.captcha_visible(page):
         return "captcha on Workday account creation"
@@ -520,12 +543,12 @@ def authenticate(page, host, back_to_form, shot=lambda tag: None):
     if _visible(page, A("SignInWithEmailButton")):
         _click(page, "SignInWithEmailButton")
         page.wait_for_timeout(2000)
-    if _visible(page, A("email")) and _sign_in(page, email, pw):
+    if _visible(page, A("email")) and _sign_in(page, email, pw, host):
         _remember(host)
         return None
     shot("auth-3-signin-after-create")
     try:
-        msg = gmail.wait_for_message("in:anywhere from:(myworkday.com OR workday.com OR myworkdayjobs.com)", since)
+        msg = gmail.wait_for_message(f"from:(myworkday.com OR workday.com OR myworkdayjobs.com) {NOT_SPAM}", since)
     except FileNotFoundError as e:
         return f"account may need email verification: {e}"
     link = gmail.find_link(msg, host) if msg else None
@@ -539,7 +562,7 @@ def authenticate(page, host, back_to_form, shot=lambda tag: None):
     if _visible(page, A("SignInWithEmailButton")):
         _click(page, "SignInWithEmailButton")
         page.wait_for_timeout(2000)
-    if not _signed_in(page) and not _sign_in(page, email, pw):
+    if not _signed_in(page) and not _sign_in(page, email, pw, host):
         shot("auth-5-signin-after-verify")
         return f"sign-in after verification failed: {' '.join(_errors(page))[:200]}"
     _remember(host)
@@ -571,7 +594,9 @@ def open_apply(page, url):
 
 
 def apply(page, job, dry, record, shot, inflight, dump=lambda tag, data: None):
-    host = urlsplit(job["url"]).netloc
+    host = ats_hosts.hostname(job["url"])
+    if ats_hosts.ats_for(job["url"]) != "workday":
+        return record(job["url"], "blocked", f"not a Workday host: {host}", dry)
     if open_apply(page, job["url"]) == "closed":
         return record(job["url"], "blocked", "posting closed", dry)
     why = authenticate(page, host, lambda: open_apply(page, job["url"]), shot)

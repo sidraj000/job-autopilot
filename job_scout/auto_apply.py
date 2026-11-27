@@ -29,6 +29,7 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "job_scout"))
+import ats_hosts  # noqa: E402
 from apply_tracking import norm_url, record_applied  # noqa: E402
 from paths import DATA_DIR, resume_pdf  # noqa: E402
 
@@ -62,14 +63,7 @@ def now():
 
 
 def ats(url):
-    host = urlparse(url).netloc.lower()
-    for needle, name in (("ashbyhq", "ashby"), ("greenhouse", "greenhouse"),
-                         ("lever.co", "lever"), ("myworkdayjobs", "workday"),
-                         ("workable", "workable"), ("smartrecruiters", "smartrecruiters"),
-                         ("jobright", "jobright")):
-        if needle in host:
-            return name
-    return "other"
+    return ats_hosts.ats_for(url) or "other"
 
 
 def posting_id(url):
@@ -112,7 +106,7 @@ def describe(j):
     flags = ",".join(j.get("red_flags") or []) or "-"
     comp = (j.get("posting_details") or {}).get("comp") or j.get("comp") or ""
     return (f'{j["score"]:>3}  {j["company"]} — {j["title"]}  '
-            f'[{ats(j["url"])}] flags:{flags}{"  " + comp if comp else ""}')
+            f'[{ats(j["url"])} {ats_hosts.hostname(j["url"])}] flags:{flags}{"  " + comp if comp else ""}')
 
 
 def parse_numbers(tokens, n):

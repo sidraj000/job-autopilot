@@ -4,12 +4,17 @@
                                rubric.md, search.json, résumé PDF. Git-ignored.
   data/     (JOB_DATA_DIR)     queue, approvals, apply log, seen store,
                                fetch snapshots. Git-ignored.
+Importing this module sets umask 077, so all of it is private to your user.
 If profile/ doesn't exist yet, profile.example/ is used so you can try the
 fetcher, but the runner refuses to submit with the example profile.
 """
 import json
 import os
 from pathlib import Path
+
+# Everything the pipeline writes (queue, screenshots of filled forms, cover
+# letters, saved sign-in cookies, the browser profile) is readable by you only.
+os.umask(0o077)
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLE_DIR = ROOT / "profile.example"

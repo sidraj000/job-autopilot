@@ -43,7 +43,8 @@ def main():
     args = p.parse_args()
 
     answerer.assert_sandboxed()
-    subprocess.run([sys.executable, str(config.ROOT / "job_scout" / "fetch_jobs.py")], check=True)
+    subprocess.run([sys.executable, str(config.ROOT / "job_scout" / "fetch_jobs.py")], check=True,
+                   env=config.child_env())
     fresh = json.loads((config.paths.DATA_DIR / "raw" / "latest.json").read_text())["jobs"]
 
     queue = auto_apply.load(auto_apply.TO_APPLY, [])
@@ -68,7 +69,7 @@ def main():
     print(f"{len(fresh)} new listing(s); screening {min(len(todo), args.max)} of {len(todo)}")
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+        browser = pw.chromium.launch(headless=True, env=config.child_env())
         page = browser.new_page()
         for j in todo[: args.max]:
             try:

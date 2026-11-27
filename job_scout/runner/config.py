@@ -35,6 +35,18 @@ def get(name, default=None):
     return os.environ.get(name, default)
 
 
+SECRET_KEYS = {"ATS_PASSWORD", "GMAIL_APP_PASSWORD", "GMAIL_CLIENT_SECRET", "CLIENT_SECRET",
+               "ANTHROPIC_API_KEY"}
+
+
+def child_env():
+    """The environment minus the secrets above (and WORKDAY_PW_*), for every
+    child process: the claude CLI, the helper scripts and the browser. Only
+    this process ever holds a password; the CLI keeps its own login."""
+    return {k: v for k, v in os.environ.items()
+            if k not in SECRET_KEYS and not k.startswith("WORKDAY_PW_")}
+
+
 def workday_password(host):
     """Password for one Workday tenant. A per-company key wins (set by you for
     accounts that already exist with a different password), else ATS_PASSWORD.

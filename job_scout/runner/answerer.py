@@ -154,7 +154,8 @@ def assert_sandboxed():
         proc = subprocess.run(
             [config.CLAUDE_BIN, "-p", *answer_api.LOCKDOWN, "--model", config.CLAUDE_MODEL,
              "--output-format", "stream-json", "--verbose"],
-            input="reply ok", capture_output=True, text=True, cwd=empty, timeout=300)
+            input="reply ok", capture_output=True, text=True, cwd=empty, timeout=300,
+            env=config.child_env())
     for line in proc.stdout.splitlines():
         try:
             ev = json.loads(line)

@@ -4,6 +4,9 @@ the "needs you" list."""
 import re
 from urllib.parse import urlsplit, urlunsplit
 
+from . import config  # noqa: F401 — puts job_scout/ on sys.path
+import ats_hosts  # noqa: E402
+
 SUBMIT_RX = re.compile(r"^\s*(submit( your)? application|submit|apply)\s*$", re.I)
 
 
@@ -64,11 +67,9 @@ ADAPTERS = {"ashby": Ashby(), "lever": Lever(), "greenhouse": Greenhouse(), "rip
 
 
 def for_url(url):
-    host = urlsplit(url).netloc.lower()
-    if "myworkdayjobs" in host or "myworkdaysite" in host:
+    """Adapter for a job URL, by exact ATS host (see ats_hosts). Lookalike
+    hosts get no adapter, so the runner never fills or signs in on them."""
+    name = ats_hosts.ats_for(url)
+    if name == "workday":
         return WORKDAY
-    for needle, key in (("ashbyhq", "ashby"), ("lever.co", "lever"),
-                        ("greenhouse", "greenhouse"), ("rippling", "rippling")):
-        if needle in host:
-            return ADAPTERS[key]
-    return None
+    return ADAPTERS.get(name)

@@ -61,7 +61,8 @@ def _api(prompt, system=None, schema=None):
 def _cli(args, prompt, timeout):
     with tempfile.TemporaryDirectory() as empty:
         proc = subprocess.run([config.CLAUDE_BIN, "-p", *LOCKDOWN, "--model", config.CLAUDE_MODEL, *args],
-                              input=prompt, capture_output=True, text=True, cwd=empty, timeout=timeout)
+                              input=prompt, capture_output=True, text=True, cwd=empty, timeout=timeout,
+                              env=config.child_env())
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI failed ({proc.returncode}): {(proc.stderr or proc.stdout)[-500:]}")
     return proc.stdout

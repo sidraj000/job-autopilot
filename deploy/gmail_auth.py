@@ -13,6 +13,7 @@ https://myaccount.google.com/permissions. Stdlib only.
 """
 import http.server
 import json
+import os
 import secrets
 import sys
 import urllib.parse
@@ -71,6 +72,7 @@ def main():
     tok = json.load(urllib.request.urlopen("https://oauth2.googleapis.com/token", body, timeout=20))
     if "refresh_token" not in tok:
         sys.exit("no refresh_token returned; remove the app at myaccount.google.com/permissions and retry")
+    os.umask(0o077)  # created private, not chmod-ed after the fact
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({"client_id": client_id, "client_secret": client_secret,
                                "refresh_token": tok["refresh_token"]}))
